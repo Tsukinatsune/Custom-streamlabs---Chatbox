@@ -3,26 +3,250 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbox</title>
+    <title>Template chatbox</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Roboto', Arial, sans-serif;
+            background: transparent;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .chat-messages {
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            scrollbar-width: none; /* Hide scrollbar for Firefox */
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            display: none; /* Hide scrollbar for Chrome/Safari */
+        }
+
+        .chat-message {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 20px;
+            max-width: 80%;
+            word-wrap: break-word;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            opacity: 0; /* Start hidden for animation */
+            animation: fadeIn 0.5s ease-out forwards; /* Apply animation */
+        }
+
+        /* Animation for new messages */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Animation for messages fading out */
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+        }
+
+        /* Skip animation for cached messages */
+        .chat-message.seen {
+            opacity: 1;
+            animation: none;
+        }
+
+        /* Apply fade out animation */
+        .chat-message.fade-out {
+            animation: fadeOut 0.5s ease-out forwards;
+        }
+        
+        .chat-message img.profile-img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #ff69b4;
+        }
+
+        .message-content {
+            flex: 1;
+        }
+
+        .author-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ff1493;
+            line-height: 1.4;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+            /* Add outline to all author names */
+            -webkit-text-stroke: 1px #000000;
+        }
+
+        .author-name.moderator {
+            color: #00b7eb;
+        }
+
+        .author-name.owner {
+            color: #ffd700;
+        }
+
+        .message-text {
+            font-size: 14px;
+            color: #333;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .message-text img.emoji {
+            width: 20px;
+            height: 20px;
+            vertical-align: middle;
+            margin: 0 2px;
+        }
+    </style>
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-messages" id="chatMessages">
-        </div>
+    <div class="chat-messages" id="chatMessages">
     </div>
 
     <script>
-        const framework = new Getmessage({ messageInterval: 5000 });
+        const framework = new Getmessage({ messageInterval: 1000 });
         const chatMessages = document.getElementById('chatMessages');
+        const seenMessageIds = new Set();
+        const maxMessages = 10;
+        let cachedMessages = []; // Variable to cache message IDs
+
+        // Emoji mapping
+        const emojiMap = {
+            ':yt:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_16-28-41.jpg',
+            ':oops:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-09-03.jpg',
+            ':buffering:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-10-17.jpg',
+            ':stayhome:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-11-22.jpg',
+            ':dothefive:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-13-16.jpg',
+            ':elbowbump:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-14-05.jpg',
+            ':goodvibes:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-15-20.jpg',
+            ':thanksdoc:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-16-32.jpg',
+            ':videocall:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-17-33.jpg',
+            ':virtualhug:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-20-48.jpg',
+            ':yougotthis:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-18-27.jpg',
+            ':sanitizer:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-21-42.jpg',
+            ':takeout:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-22-37.jpg',
+            ':hydrate:': 'https://cdn-0.emojis.wiki/uploads/2020/11/Plqt3RM7NBy-R_eA90cIjzMEzo8guwE0.png',
+            ':chillwcat:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-24-18.jpg',
+            ':chillwdog:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-25-26.jpg',
+            ':elbowcough:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-26-24.jpg',
+            ':learning:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-27-13.jpg',
+            ':washhands:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-29-05.jpg',
+            ':socialdist:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-29-52.jpg',
+            ':shelterin:': 'https://cdn-0.emojis.wiki/uploads/2020/11/photo_2020-11-05_17-30-44.jpg',
+            ':hand-pink-waving:': 'https://cdn-0.emojis.wiki/uploads/2022/12/hand-pink-waving.png',
+            ':face-blue-smiling:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-blue-smiling.png',
+            ':face-red-droopy-eyes:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-red-droopy-eyes.png',
+            ':face-purple-crying:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-purple-crying.png',
+            ':text-green-game-over:': 'https://cdn-0.emojis.wiki/uploads/2022/12/text-green-game-over.png',
+            ':text-green-gg:': 'https://cdn-0.emojis.wiki/uploads/2022/12/text-green-gg.png',
+            ':person-turqouise-waving:': 'https://cdn-0.emojis.wiki/uploads/2022/12/person-turqouise-waving.png',
+            ':face-green-smiling:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-green-smiling.png',
+            ':face-orange-frowning:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-orange-frowning.png',
+            ':eyes-purple-crying:': 'https://cdn-0.emojis.wiki/uploads/2022/12/eyes-purple-crying.png',
+            ':face-fuchsia-wide-eyes:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-fuchsia-wide-eyes.png',
+            ':cat-orange-whistling:': 'https://cdn-0.emojis.wiki/uploads/2022/12/cat-orange-whistling.png',
+            ':face-blue-wide-eyes:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-blue-wide-eyes.png',
+            ':face-orange-raised-eyebrow:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-orange-raised-eyebrow.png',
+            ':face-fuchsia-tongue-out:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-fuchsia-tongue-out.png',
+            ':face-red-heart-shape:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-red-heart-shape.png',
+            ':face-fuchsia-poop-shape.png:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-fuchsia-poop-shape.png',
+            ':face-purple-wide-eyes:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-purple-wide-eyes.png',
+            ':glasses-purple-yellow-diamond:': 'https://cdn-0.emojis.wiki/uploads/2022/12/glasses-purple-yellow-diamond.png',
+            ':face-pink-tears:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-pink-tears.png',
+            ':body-blue-raised-arms:': 'https://cdn-0.emojis.wiki/uploads/2022/12/body-blue-raised-arms.png',
+            ':hand-orange-covering-eyes:': 'https://cdn-0.emojis.wiki/uploads/2022/12/hand-orange-covering-eyes.png',
+            ':trophy-yellow-smiling:': 'https://cdn-0.emojis.wiki/uploads/2022/12/trophy-yellow-smiling.png',
+            ':eyes-pink-heart-shape:': 'https://cdn-0.emojis.wiki/uploads/2022/12/eyes-pink-heart-shape.png',
+            ':face-turquoise-covering-eyes:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-turquoise-covering-eyes.png',
+            ':hand-green-crystal-ball:': 'https://cdn-0.emojis.wiki/uploads/2022/12/hand-green-crystal-ball.png',
+            ':body-green-covering-eyes:': 'https://cdn-0.emojis.wiki/uploads/2022/12/body-green-covering-eyes.png',
+            ':goat-turqouise-white-horns:': 'https://cdn-0.emojis.wiki/uploads/2022/12/goat-turqouise-white-horns.png',
+            ':hand-purple-blue-peace:': 'https://cdn-0.emojis.wiki/uploads/2022/12/hand-purple-blue-peace.png',
+            ':face-blue-question-mark:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-blue-question-mark.png',
+            ':face-blue-covering-eyes:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-blue-covering-eyes.png',
+            ':face-purple-smiling-fangs:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-purple-smiling-fangs.png',
+            ':face-purple-sweating:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-purple-sweating.png',
+            ':face-purple-smiling-tears:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-purple-smiling-tears.png',
+            ':face-blue-star-eyes:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-blue-star-eyes.png',
+            ':face-blue-heart-eyes:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-blue-heart-eyes.png',
+            ':face-blue-three-eyes:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-blue-three-eyes.png',
+            ':face-blue-droopy-eyes:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-blue-droopy-eyes.png',
+            ':planet-orange-purple-ring:': 'https://cdn-0.emojis.wiki/uploads/2022/12/planet-orange-purple-ring.png',
+            ':face-orange-biting-nails:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-orange-biting-nails.png',
+            ':face-turquoise-drinking-coffee:': 'https://cdn-0.emojis.wiki/uploads/2022/12/face-turquoise-drinking-coffee.png',
+            ':artoriasphere:': 'https://ik.imagekit.io/ye6lrgrhs/Untitled_design-removebg-preview.png?updatedAt=1755614461577',
+            ':umy:': 'https://ik.imagekit.io/ye6lrgrhs/Umyconnect.png?updatedAt=1755607579109',
+        };
+
+        // Function to replace emoji codes with images
+        function replaceEmojis(text) {
+            let result = text;
+            for (const [code, url] of Object.entries(emojiMap)) {
+                // Escape special characters in emoji code for regex and replace with img tag
+                const escapedCode = code.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+                const regex = new RegExp(escapedCode, 'g');
+                result = result.replace(regex, `<img class="emoji" src="${url}" alt="${code} emoji" />`);
+            }
+            return result;
+        }
 
         framework.addListener((response) => {
             response.forEach(message => {
-                const { authorDetails, snippet } = message;
+                const { authorDetails, snippet, id } = message;
+
+                // Skip if message ID already seen
+                if (seenMessageIds.has(id)) return;
+                seenMessageIds.add(id);
+                cachedMessages.push(id); // Cache message ID in variable
+
+                // Remove oldest message if at max capacity
+                const messages = chatMessages.getElementsByClassName('chat-message');
+                while (messages.length >= maxMessages) {
+                    const oldestMessage = messages[0];
+                    seenMessageIds.delete(oldestMessage.dataset.messageId);
+                    cachedMessages = cachedMessages.filter(msgId => msgId !== oldestMessage.dataset.messageId);
+                    oldestMessage.remove();
+                }
+
                 const messageElement = document.createElement('div');
                 messageElement.className = 'chat-message';
+                messageElement.dataset.messageId = id;
+
+                // Check if message was previously seen (in cachedMessages)
+                if (cachedMessages.includes(id)) {
+                    messageElement.classList.add('seen'); // Skip animation for cached messages
+                }
 
                 const img = document.createElement('img');
-                img.src = authorDetails.profileImageUrl || 'https://via.placeholder.com/40';
+                img.className = 'profile-img';
+                img.src = authorDetails.profileImageUrl || 'https://tse3.mm.bing.net/th/id/OIP._wN0KMxbe6kGLB2KQPDgdQHaFj?r=0&rs=1&pid=ImgDetMain&o=7&rm=3';
                 img.alt = authorDetails.displayName;
 
                 const content = document.createElement('div');
@@ -36,13 +260,30 @@
 
                 const text = document.createElement('div');
                 text.className = 'message-text';
-                text.textContent = snippet.textMessageDetails?.messageText || '';
+                // Replace emoji codes with images
+                const messageText = snippet.textMessageDetails?.messageText || '';
+                text.innerHTML = replaceEmojis(messageText);
 
                 content.appendChild(author);
                 content.appendChild(text);
                 messageElement.appendChild(img);
                 messageElement.appendChild(content);
                 chatMessages.appendChild(messageElement);
+
+                // Apply fade-out animation after 10 seconds for non-cached messages
+                if (!messageElement.classList.contains('seen')) {
+                    setTimeout(() => {
+                        messageElement.classList.add('fade-out');
+                        // Remove the message after the animation completes
+                        setTimeout(() => {
+                            if (messageElement.parentNode) {
+                                messageElement.remove();
+                                seenMessageIds.delete(id);
+                                cachedMessages = cachedMessages.filter(msgId => msgId !== id);
+                            }
+                        }, 500); // Match the duration of the fadeOut animation
+                    }, 10000); // 10 seconds delay
+                }
 
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             });
@@ -54,10 +295,6 @@
         });
 
         framework.init();
-
-        setTimeout(() => {
-            framework.setMessageInterval(10000);
-        }, 10000);
     </script>
 </body>
 </html>
