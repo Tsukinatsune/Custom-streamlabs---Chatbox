@@ -1,3 +1,7 @@
+Example csc.html
+
+Must** in same path as csc.exe
+
 Class Methods
 
  constructor(config = {}) 
