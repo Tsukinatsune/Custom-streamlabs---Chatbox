@@ -1,6 +1,9 @@
 Example csc.html
 
 Must** in same path as csc.exe
+total 17M
+-rwxrwxrwx    1 root     root       16.6M Sep 20 14:48 CSC.exe
+-rwxrwxrwx    1 root     root       14.7K Sep 20 14:48 csc.html
 
 Class Methods
 
